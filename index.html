@@ -7,103 +7,281 @@
 <meta name="description" content="Flood decision support for eight Irish towns: live river forecasts, Met Éireann warnings and the team Sheet, checked against the Flood Plan.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--ink:#1b1f24;--muted:#5d6670;--line:#dde1e6;--accent:#0b5cad;
---normal:#2e7d32;--normal-bg:#e8f5e9;--standby:#9a6700;--standby-bg:#fff4d6;--barriers:#b3261e;--barriers-bg:#fde7e5;--flag:#6a1b9a}
-@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1b1e23;--ink:#e8eaed;--muted:#9aa3ad;--line:#2c3138;--accent:#6ab0ff;
---normal:#81c784;--normal-bg:#16301a;--standby:#ffd166;--standby-bg:#3a2f10;--barriers:#ff8a80;--barriers-bg:#3d1714;--flag:#ce93d8}}
+/* River Watch: Liffey teal, granite quay, Georgian-door accents */
+:root{
+  --liffey-900:#06343a;--liffey-700:#0b5560;--liffey-500:#137a86;--liffey-300:#5fb3b3;--liffey-100:#dff0ee;
+  --granite:#26313a;--granite-2:#3c4954;--stone:#f3f1ec;--paper:#ffffff;--ink:#16202a;--muted:#5d6a75;--line:#e3e0d8;
+  --door-red:#c0362c;--door-red-bg:#fbe8e5;--door-amber:#b97800;--door-amber-bg:#fff2d6;--door-green:#1f7a4d;--door-green-bg:#e3f4ea;
+  --door-blue:#1d4e89;--violet:#6b3fa0;--shadow:0 1px 2px rgba(16,32,42,.06),0 8px 24px rgba(16,32,42,.07);
+  --radius:16px;--hero-grad:linear-gradient(135deg,#06343a 0%,#0b5560 45%,#137a86 100%);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --stone:#0d1418;--paper:#151e24;--ink:#e7eef0;--muted:#94a4ad;--line:#25323a;--liffey-100:#12343a;
+  --door-red:#ff8a7d;--door-red-bg:#3a1714;--door-amber:#ffc657;--door-amber-bg:#3a2c0c;--door-green:#6fd6a0;--door-green-bg:#11301f;
+  --door-blue:#8fb8ff;--violet:#c9a6ff;--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  --hero-grad:linear-gradient(135deg,#031d21 0%,#06343a 50%,#0b5560 100%)}}
+:root[data-theme="dark"]{
+  --stone:#0d1418;--paper:#151e24;--ink:#e7eef0;--muted:#94a4ad;--line:#25323a;--liffey-100:#12343a;
+  --door-red:#ff8a7d;--door-red-bg:#3a1714;--door-amber:#ffc657;--door-amber-bg:#3a2c0c;--door-green:#6fd6a0;--door-green-bg:#11301f;
+  --door-blue:#8fb8ff;--violet:#c9a6ff;--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  --hero-grad:linear-gradient(135deg,#031d21 0%,#06343a 50%,#0b5560 100%)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header,main,footer{max-width:1100px;margin:0 auto;padding:0 16px}
-header{padding-top:18px}
-h1{font-size:1.6rem;margin:0}
-h2{font-size:1.1rem;margin:0 0 8px}
-.sub{color:var(--muted);margin:2px 0 10px}
-.banner{background:var(--standby-bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:8px 0;font-weight:600}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}
-button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
-button:disabled{opacity:.5;cursor:wait}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
-textarea{width:100%;min-height:60px;resize:vertical}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--stone);color:var(--ink);font:15px/1.55 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;letter-spacing:-.01em;margin:0}
+h2{font-size:1.35rem}h3{font-size:1.05rem}
+.muted{color:var(--muted)}.src{color:var(--muted);font-size:.8rem}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:9px 14px;background:var(--liffey-500);color:#fff;font-weight:600;transition:transform .12s,background .2s,box-shadow .2s}
+button:hover{background:var(--liffey-700)}button:active{transform:translateY(1px)}button:disabled{opacity:.55;cursor:progress}
+button.ghost{background:transparent;color:var(--liffey-500);box-shadow:inset 0 0 0 1.5px var(--liffey-300)}
+button.ghost:hover{background:var(--liffey-100)}
+:focus-visible{outline:3px solid var(--door-amber);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--stone);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--liffey-500);outline:none}
+
+/* hero */
+.hero{background:var(--hero-grad);color:#fff;position:relative;overflow:hidden;padding:22px 0 86px}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(800px 300px at 85% -10%,rgba(255,255,255,.14),transparent 60%);pointer-events:none}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;z-index:2}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.12);display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.brand h1{font-size:1.55rem;line-height:1}.brand small{display:block;opacity:.8;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.pill-btn{background:rgba(255,255,255,.12);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);padding:8px 12px}
+.pill-btn:hover{background:rgba(255,255,255,.22)}
+.hero-body{position:relative;z-index:2;display:grid;grid-template-columns:1.4fr 1fr;gap:24px;margin-top:26px;align-items:end}
+.hero-body h2{font-size:clamp(1.6rem,3.6vw,2.4rem);line-height:1.12;max-width:20ch}
+.hero-body p{opacity:.88;max-width:52ch;margin:10px 0 0}
+.clock{background:rgba(255,255,255,.1);border-radius:var(--radius);padding:14px 16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);backdrop-filter:blur(6px)}
+.clock .big{font-family:Fraunces,Georgia,serif;font-size:1.9rem;line-height:1}
+.clock .row{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:.85rem;opacity:.9}
+.waves{position:absolute;left:0;right:0;bottom:-2px;height:90px;z-index:1}
+.waves svg{position:absolute;bottom:0;width:200%;height:100%;animation:drift 18s linear infinite}
+.waves svg.w2{animation-duration:28s;opacity:.55}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.waves svg{animation:none}}
+.disclaimer{position:relative;z-index:3;margin:-58px auto 0;max-width:1180px;padding:0 16px}
+.disclaimer div{background:var(--paper);border-radius:14px;box-shadow:var(--shadow);padding:12px 16px;display:flex;gap:12px;align-items:center;border-left:5px solid var(--door-amber);font-weight:600}
+
+/* sections */
+section{margin:22px 0}
+.card{background:var(--paper);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.status{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:.8rem;font-weight:600;background:var(--liffey-100);color:var(--liffey-700)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip{color:var(--liffey-300)}}
+:root[data-theme="dark"] .chip{color:var(--liffey-300)}
+.chip.bad{background:var(--door-red-bg);color:var(--door-red)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.reh-banner{background:repeating-linear-gradient(135deg,var(--door-amber-bg) 0 14px,transparent 14px 28px);border:1.5px dashed var(--door-amber);color:var(--door-amber);border-radius:12px;padding:10px 14px;font-weight:700;margin-bottom:12px}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:var(--paper);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--k,var(--liffey-500))}
+.kpi .n{font-family:Fraunces,Georgia,serif;font-size:2rem;line-height:1.1}
+.kpi .l{color:var(--muted);font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.kpi .s{font-size:.8rem;color:var(--muted);margin-top:2px;min-height:1.2em}
+
+/* map + crews */
+.duo{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+#map{height:420px;border-radius:12px;z-index:0;background:var(--liffey-100)}
+.leaflet-popup-content{font:13px/1.45 Inter,system-ui,sans-serif}
+.crews{display:grid;gap:10px}
+.crew{border:1.5px solid var(--line);border-radius:12px;padding:12px}
+.crew h3{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.slot{border-radius:10px;padding:8px 10px;font-weight:600;font-size:.9rem;background:var(--stone);border:1.5px dashed var(--line);color:var(--muted)}
+.slot.full{background:var(--door-red-bg);border:1.5px solid transparent;color:var(--door-red)}
+.crew .area{font-size:.8rem;color:var(--muted);margin-top:6px}
+.crew .warn{color:var(--violet);font-size:.82rem;font-weight:600;margin-top:4px}
+
+/* town cards */
+.towns{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.town{background:var(--paper);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:10px;border-top:5px solid var(--lc,var(--line));transition:transform .15s,box-shadow .15s}
+.town:hover{transform:translateY(-2px)}
+.town header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.town .meta{font-size:.82rem;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-weight:700;font-size:.78rem;white-space:nowrap}
+.L0{--lc:var(--door-green)}.L1{--lc:var(--door-amber)}.L2{--lc:var(--door-red)}
+.b0{background:var(--door-green-bg);color:var(--door-green)}.b1{background:var(--door-amber-bg);color:var(--door-amber)}.b2{background:var(--door-red-bg);color:var(--door-red)}.bx{background:var(--stone);color:var(--muted)}
+.meter{position:relative;height:12px;border-radius:999px;background:linear-gradient(90deg,var(--door-green-bg) 0 var(--p95),var(--door-amber-bg) var(--p95) var(--p99),var(--door-red-bg) var(--p99) 100%);margin:18px 0 18px}
+.meter .fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--lc,var(--liffey-500));width:var(--v);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.meter .tick{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--granite-2);opacity:.6}
+.meter .tl{position:absolute;top:-19px;transform:translateX(-50%);font-size:.7rem;color:var(--muted);white-space:nowrap}
+.meter .bl{position:absolute;top:15px;transform:translateX(-50%);font-size:.7rem;color:var(--muted);white-space:nowrap}
+.nums{display:flex;justify-content:space-between;align-items:baseline}
+.nums .peak{font-family:Fraunces,Georgia,serif;font-size:1.5rem}
+.spark{display:flex;gap:4px;align-items:flex-end;height:30px}
+.spark span{flex:1;border-radius:4px 4px 0 0;background:var(--liffey-300);min-height:3px;position:relative}
+.spark span.pk{background:var(--liffey-500)}
+.town .act{font-size:.88rem}
+.town .flag{color:var(--violet);font-weight:600;font-size:.84rem}
+.tag{display:inline-block;border-radius:6px;padding:1px 6px;font-size:.72rem;font-weight:700;background:var(--door-amber-bg);color:var(--door-amber);margin-left:4px}
+.tag.w{background:var(--door-red-bg);color:var(--door-red)}.tag.y{background:#fff7c2;color:#7a6400}
+.town footer{display:flex;gap:8px;margin-top:auto}
+.town footer button{padding:6px 10px;font-size:.82rem}
+
+/* working */
+details.working summary{cursor:pointer;font-weight:600;color:var(--liffey-500);list-style:none}
+details.working summary::before{content:"▸ ";}details.working[open] summary::before{content:"▾ "}
 .tablewrap{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.9rem}
-th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
 th{color:var(--muted);font-weight:600;white-space:nowrap}
-.lvl{display:inline-block;border-radius:999px;padding:1px 9px;font-weight:700;font-size:.85rem;white-space:nowrap}
-.Normal{color:var(--normal);background:var(--normal-bg)}.Standby{color:var(--standby);background:var(--standby-bg)}.Barriers{color:var(--barriers);background:var(--barriers-bg)}
-.flag{color:var(--flag);font-weight:600}
-.reh{background:var(--standby-bg);border-radius:4px;padding:0 4px;font-weight:600}
-.src{color:var(--muted);font-size:.8rem}
-.answer{border-left:3px solid var(--accent);padding:4px 12px;margin:10px 0}
-.answer table{margin:6px 0}
-.q{font-weight:600;margin-top:14px}
-.err{color:var(--barriers);font-weight:600}
-details summary{cursor:pointer;color:var(--accent)}
-.chips button{background:transparent;color:var(--accent);border:1px solid var(--line);padding:5px 9px;font-size:.88rem}
-footer{color:var(--muted);font-size:.82rem;padding-bottom:30px}
-code{font-size:.85em}
+
+/* ask */
+.ask-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{background:var(--liffey-100);color:var(--liffey-700);font-weight:600;font-size:.85rem;padding:7px 11px;border-radius:999px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chips button{color:var(--liffey-300)}}
+:root[data-theme="dark"] .chips button{color:var(--liffey-300)}
+.chips button:hover{background:var(--liffey-300);color:#06343a}
+.composer{display:flex;gap:8px;align-items:flex-end}
+.composer textarea{min-height:52px;resize:vertical}
+#chat{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.q{align-self:flex-end;background:var(--liffey-500);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 14px;max-width:85%;font-weight:600}
+.answer{align-self:flex-start;background:var(--stone);border-radius:16px 16px 16px 4px;padding:12px 16px;max-width:100%;border:1px solid var(--line)}
+.answer table{margin:8px 0;background:var(--paper)}
+.answer p:first-child{margin-top:0}.answer p:last-child{margin-bottom:0}
+.typing{display:inline-flex;gap:4px}.typing i{width:7px;height:7px;border-radius:50%;background:var(--liffey-500);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.err{color:var(--door-red);font-weight:600}
+
+/* area manager */
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:150px 1fr 70px;gap:10px;align-items:center;font-size:.88rem}
+.bar .track{height:22px;border-radius:8px;background:var(--stone);overflow:hidden;display:flex}
+.bar .f4{background:var(--liffey-300)}.bar .mid{background:var(--liffey-500);opacity:.55}.bar .l4{background:var(--liffey-700)}
+.bar.top .name{font-weight:700}.bar.top .track{box-shadow:0 0 0 2px var(--door-amber)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin:10px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+.am-answer{background:var(--liffey-100);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+
+/* settings dialog */
+dialog{border:0;border-radius:18px;padding:0;max-width:520px;width:calc(100% - 32px);background:var(--paper);color:var(--ink);box-shadow:0 30px 80px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(6,52,58,.55);backdrop-filter:blur(3px)}
+.dlg-head{background:var(--hero-grad);color:#fff;padding:16px 18px}
+.dlg-body{padding:16px 18px;display:grid;gap:10px}
+.dlg-body label{font-size:.82rem;font-weight:600;color:var(--muted);display:grid;gap:4px}
+.dlg-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+footer.site{background:var(--granite);color:#c9d3d9;padding:26px 0 34px;margin-top:30px;font-size:.82rem}
+footer.site b{color:#fff}
+footer.site a{color:var(--liffey-300)}
+
+@media (max-width:900px){.hero-body,.duo{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}#map{height:320px}}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,1fr)}.kpi .n{font-size:1.6rem}.bar{grid-template-columns:96px 1fr 52px}.brand small{display:none}.composer{flex-direction:column;align-items:stretch}}
 </style>
 </head>
 <body>
-<header>
-  <h1>River Watch</h1>
-  <p class="sub">Decision support for the flood response team: eight towns, three crews, the Flood Plan 2026/27.</p>
-  <div class="banner">AI can make mistakes; a person makes the final decision. River Watch recommends, and the Duty Officer decides by 16:00 and records the decision and the reason.</div>
-</header>
-<main>
-  <section class="card" id="settings">
-    <details id="settingsBox">
-      <summary><b>Settings: AI key</b> <span id="keyState" class="src"></span></summary>
-      <p class="src">Your key stays in this browser only (localStorage) and is sent only to the provider you pick. It is never in this page's code or repository.</p>
-      <div class="row">
-        <label>Provider <select id="provider">
-          <option value="groq">Groq</option><option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option></select></label>
-        <label>Model <input id="model" size="26"></label>
+<div class="hero">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M2 8c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 13c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/></svg></div>
+        <div><h1>River Watch</h1><small>Flood response decision support · Ireland</small></div>
       </div>
-      <div class="row" style="margin-top:8px">
-        <input id="apikey" type="password" placeholder="Paste your API key" size="40" autocomplete="off">
-        <button id="saveKey">Save key</button><button id="forgetKey" class="ghost">Forget key</button>
+      <div class="top-actions">
+        <button class="pill-btn" id="refresh" title="Re-read the Sheet, forecast and warnings">↻ Refresh live data</button>
+        <button class="pill-btn" id="themeBtn" title="Switch light or dark">◐</button>
+        <button class="pill-btn" id="openSettings">⚙ AI key <span id="keyState" style="opacity:.8;font-weight:500"></span></button>
       </div>
-    </details>
-  </section>
-
-  <section class="card">
-    <div class="row" style="justify-content:space-between">
-      <h2>Tonight's plan <span id="planStamp" class="src"></span></h2>
-      <button id="refresh">Refresh live data</button>
     </div>
-    <div id="planStatus" class="src">Loading live data…</div>
-    <div class="tablewrap"><table id="planTable"></table></div>
-    <div id="crewBox"></div>
-    <details style="margin-top:8px"><summary>Show working: every number and where it came from</summary><div id="working" class="tablewrap"></div></details>
-  </section>
-
-  <section class="card">
-    <h2>Ask River Watch</h2>
-    <div class="chips row" style="margin-bottom:8px">
-      <button data-q="What is tonight's plan?">What is tonight's plan?</button>
-      <button data-q="Why is Fermoy at that level?">Why is Fermoy at that level?</button>
-      <button data-q="What if the Suir at Clonmel reaches 150 m³/s?">What if the Suir at Clonmel reaches 150 m³/s?</button>
-      <button data-q="Which town should be first in line for a flood-defence study?">Which town first for a flood-defence study?</button>
-      <button data-q="Will my house in Mallow flood tonight?">Will my house in Mallow flood tonight?</button>
+    <div class="hero-body">
+      <div>
+        <h2>Tonight's plan for eight towns, three crews and one Flood Plan.</h2>
+        <p>River Watch reads the live river forecast, Met Éireann warnings and the team Sheet, applies the Flood Plan 2026/27, and shows where every number came from.</p>
+      </div>
+      <div class="clock" aria-live="polite">
+        <div class="src" style="color:#fff;opacity:.8">Dublin time</div>
+        <div class="big" id="clockNow">--:--</div>
+        <div class="row"><span>Decision due 16:00</span><b id="clockDue">–</b></div>
+        <div class="row"><span>Barriers up by</span><b>18:00</b></div>
+      </div>
     </div>
-    <textarea id="question" placeholder="Ask a question about tonight's plan, a town, a what-if, or the flood-defence study…"></textarea>
-    <div class="row" style="margin-top:8px"><button id="ask">Ask</button><button id="clearChat" class="ghost">Clear conversation</button><span id="askStatus" class="src"></span></div>
-    <div id="chat"></div>
+  </div>
+  <div class="waves" aria-hidden="true">
+    <svg class="w2" viewBox="0 0 1440 90" preserveAspectRatio="none"><path fill="rgba(255,255,255,.25)" d="M0 50 C 120 20 240 20 360 50 S 600 80 720 50 S 960 20 1080 50 S 1320 80 1440 50 V90 H0Z"/></svg>
+    <svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path fill="var(--stone)" d="M0 60 C 180 30 360 30 540 60 S 900 90 1080 60 S 1260 35 1440 60 V90 H0Z"/></svg>
+  </div>
+</div>
+<div class="disclaimer"><div><span aria-hidden="true">⚖</span><span>AI can make mistakes; a person makes the final decision. River Watch recommends. The Duty Officer decides by 16:00 and records the decision and the reason.</span></div></div>
+
+<main class="wrap">
+  <section>
+    <div class="sec-head">
+      <div><h2>Tonight at a glance</h2><div class="src" id="planStamp"></div></div>
+      <div class="status" id="planStatus"><span class="chip">Loading live data…</span></div>
+    </div>
+    <div id="rehBanner"></div>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section class="duo">
+    <div class="card">
+      <div class="sec-head"><h2>Map</h2><span class="src">Town (large dot) · river forecast point (small dot)</span></div>
+      <div id="map" role="img" aria-label="Map of the eight towns coloured by tonight's level"></div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h2>Crew board</h2><span class="src">Max two towns per crew, own area only</span></div>
+      <div class="crews" id="crewBox"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Towns</h2><span class="src">Bar = 3-day forecast peak against the town's own p95 and p99 (2016–2025)</span></div>
+    <div class="towns" id="townCards"></div>
+    <div class="card" style="margin-top:14px">
+      <details class="working"><summary>Show working: every number, its source and its time</summary><div id="working" class="tablewrap" style="margin-top:10px"></div></details>
+    </div>
+  </section>
+
+  <section class="card" id="askSec">
+    <div class="sec-head"><div><h2>Ask River Watch</h2><div class="src">Every question re-reads the live sources first. The code computes the plan, and the AI explains it.</div></div><button id="clearChat" class="ghost">Clear conversation</button></div>
+    <div class="ask-grid">
+      <div class="chips">
+        <button data-q="What is tonight's plan?">Tonight's plan</button>
+        <button data-q="Why is Fermoy at that level?">Why is Fermoy at that level?</button>
+        <button data-q="What if the Suir at Clonmel reaches 150 m³/s?">What if the Suir at Clonmel reaches 150 m³/s?</button>
+        <button data-q="Which town should be first in line for a flood-defence study?">Flood-defence study</button>
+        <button data-q="Will my house in Mallow flood tonight?">Will my house in Mallow flood?</button>
+      </div>
+      <div class="composer"><textarea id="question" placeholder="Ask about tonight's plan, a town, a what-if, or the flood-defence study… (Ctrl/⌘ + Enter to send)"></textarea><button id="ask">Ask ➜</button></div>
+      <div id="askStatus" class="src"></div>
+      <div id="chat"></div>
+    </div>
   </section>
 
   <section class="card">
-    <h2>Area Manager: flood-defence study <span class="src">(from stored history, computed once)</span></h2>
-    <div id="amBox" class="tablewrap">Loading…</div>
+    <div class="sec-head"><div><h2>Area Manager: which town first for a flood-defence study?</h2><div class="src">High-flow events in the winters (1 Oct–31 Mar) 2016/17 to 2024/25, from the stored history</div></div></div>
+    <div id="amBox">Loading…</div>
   </section>
 </main>
-<footer>
-  <p><b>Sources.</b> River flow forecast and 2016–2025 history: GloFAS v4, Copernicus Emergency Management Service, via the Open-Meteo Flood API (open-meteo.com), CC BY 4.0. Weather warnings: Copyright Met Éireann. Source met.ie. Published under CC BY 4.0. Met Éireann does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use. Modified: filtered to rain warnings and matched to towns. Gauge cross-check (offline only): contains Irish Public Sector Data (OPW, waterlevel.ie), CC BY 4.0. Town locations: © OpenStreetMap contributors. Team Sheet values are fictional.</p>
-  <p><b>Limits.</b> Model flows (GloFAS) are on a ~5 km grid and run lower than OPW gauge readings; River Watch compares each forecast only with thresholds from the same model cell. It does not cover coastal or tidal flooding, road closures, insurance or individual homes: those go to the council's area office.</p>
-</footer>
+
+<dialog id="settingsDlg">
+  <div class="dlg-head"><h3>AI key</h3><div style="opacity:.85;font-size:.85rem">Stored only in this browser (localStorage) and sent only to the provider you pick. Never in this page's code or repository.</div></div>
+  <div class="dlg-body">
+    <label>Provider<select id="provider"><option value="groq">Groq</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option></select></label>
+    <label>Model<input id="model"></label>
+    <label>API key<input id="apikey" type="password" placeholder="Paste your API key" autocomplete="off"></label>
+    <div class="src" id="keyState2"></div>
+    <div class="dlg-actions"><button id="forgetKey" class="ghost">Forget key</button><button id="saveKey">Save key</button><button id="closeSettings" class="ghost">Close</button></div>
+  </div>
+</dialog>
+
+<footer class="site"><div class="wrap">
+  <p><b>Sources.</b> River flow forecast and 2016–2025 history: GloFAS v4, Copernicus Emergency Management Service, via the Open-Meteo Flood API (open-meteo.com), CC BY 4.0. Weather warnings: Copyright Met Éireann. Source met.ie. Published under CC BY 4.0. Met Éireann does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use. Modified: filtered to rain warnings and matched to towns. Gauge cross-check (offline only): contains Irish Public Sector Data (OPW, waterlevel.ie), CC BY 4.0. Map and town locations: © OpenStreetMap contributors. Team Sheet values are fictional.</p>
+  <p><b>Limits.</b> Model flows (GloFAS) come from a grid of about 5 km and run lower than OPW gauge readings. River Watch compares each forecast only with thresholds from the same model cell. It does not cover coastal or tidal flooding, road closures, insurance or individual homes: those go to the council's area office.</p>
+  <p><b>AI can make mistakes; a person makes the final decision.</b></p>
+</div></footer>
 
 <script>
 "use strict";
@@ -312,29 +490,102 @@ function areaManager() {
 }
 
 // ---------------------------------------------------------------- rendering
-function lvlBadge(t) { const cls = t.level == null ? "" : LEVELS[t.level]; return `<span class="lvl ${cls}">${esc(t.final)}</span>`; }
+const LVL_COLOR = () => { const cs = getComputedStyle(document.documentElement); return [cs.getPropertyValue("--door-green").trim(), cs.getPropertyValue("--door-amber").trim(), cs.getPropertyValue("--door-red").trim()]; };
+function lvlBadge(t) { return `<span class="badge ${t.level == null ? "bx" : "b" + t.level}">${esc(t.final)}</span>`; }
+
+let MAP = null, MAP_LAYER = null;
+function renderMap(P) {
+  if (!window.L) { $("map").innerHTML = `<p class="src" style="padding:14px">Map library unavailable: the plan below is unaffected.</p>`; return; }
+  if (!MAP) {
+    MAP = L.map("map", { scrollWheelZoom: false, zoomControl: true }).setView([53.0, -8.0], 7);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 12, attribution: "© OpenStreetMap contributors" }).addTo(MAP);
+  }
+  if (MAP_LAYER) MAP_LAYER.remove();
+  MAP_LAYER = L.layerGroup().addTo(MAP);
+  const col = LVL_COLOR(), pts = [];
+  for (const t of P.towns) {
+    const h = t.hist, c = t.level == null ? "#8a969f" : col[t.level];
+    L.polyline([[h.town_lat, h.town_lon], [h.cell_lat, h.cell_lon]], { color: "#137a86", weight: 2, dashArray: "4 4", opacity: .8 }).addTo(MAP_LAYER);
+    L.circleMarker([h.cell_lat, h.cell_lon], { radius: 4, color: "#137a86", fillColor: "#5fb3b3", fillOpacity: 1, weight: 2 })
+      .bindTooltip(`${esc(t.river)} forecast point (GloFAS ${h.cell_lat}, ${h.cell_lon})`).addTo(MAP_LAYER);
+    L.circleMarker([h.town_lat, h.town_lon], { radius: 11, color: "#fff", weight: 3, fillColor: c, fillOpacity: .95 })
+      .bindPopup(`<b>${esc(t.town)}</b> · ${esc(t.river)}<br>Level: <b>${esc(t.final)}</b><br>Peak ${fmt(t.peak)} m³/s${t.rehearsal.flow ? " (REHEARSAL)" : ""}<br>p95 ${fmt(h.p95_m3s)} · p99 ${fmt(h.p99_m3s)}<br>${esc(t.action)}${t.crew ? "<br>Crew: " + esc(t.crew) : ""}`)
+      .bindTooltip(`${esc(t.town)}: ${esc(t.final)}`).addTo(MAP_LAYER);
+    pts.push([h.town_lat, h.town_lon]);
+  }
+  if (!MAP._fitted) { MAP.fitBounds(pts, { padding: [24, 24] }); MAP._fitted = true; }
+}
+
 function renderPlan(P) {
-  $("planStamp").textContent = `(live data fetched ${dublin(P.fetched)})`;
-  $("planTable").innerHTML = `<tr><th>Town</th><th>River</th><th>Peak (3 days)</th><th>p95 / p99</th><th>Warnings</th><th>Level</th><th>Action</th></tr>` +
-    P.towns.map(t => `<tr><td><b>${esc(t.town)}</b><div class="src">${esc(t.counties.join(" + "))}</div></td><td>${esc(t.river)}</td>
-    <td>${t.rehearsal.flow || t.rehearsal.whatIf ? `<span class="reh">${fmt(t.peak)} ${t.rehearsal.whatIf ? "WHAT-IF" : "REHEARSAL"}</span>` : fmt(t.peak) + " m³/s"}</td>
-    <td>${fmt(t.hist.p95_m3s)} / ${fmt(t.hist.p99_m3s)}</td>
-    <td>${t.live.map(w => `<b>${esc(w.level)}</b> ${esc(w.type)}`).join("<br>") || ""}${t.rehearsalWarn ? `<span class="reh">${esc(t.rehearsalWarn)} REHEARSAL</span>` : ""}${t.yellow.length ? `<div class="src">yellow (no change)</div>` : ""}${!t.live.length && !t.rehearsalWarn && !t.yellow.length ? "none" : ""}</td>
-    <td>${lvlBadge(t)}</td><td>${esc(t.action)}${t.standby ? `<div class="src">${esc(t.standby)}</div>` : ""}${t.flags.map(f => `<div class="flag">⚑ ${esc(f)}</div>`).join("")}</td></tr>`).join("");
-  $("crewBox").innerHTML = `<p><b>Crews</b> (max two towns each, own area only): ` + P.crews.map(c => `${esc(c.name)} crew → ${c.slots.length ? esc(c.slots.join(", ")) : "no barrier jobs"}${c.status !== "available" ? ` <span class="flag">(${esc(c.status)})</span>` : ""}`).join(" · ") + `</p>` +
-    (P.anyRehearsal ? `<p class="reh">This plan uses REHEARSAL values from the Team Sheet.</p>` : "") +
-    (P.issues.length ? `<p class="err">Data checks: ${esc(P.issues.join("; "))}</p>` : "");
+  $("planStamp").textContent = `Live data fetched ${dublin(P.fetched)} · Team Sheet, GloFAS forecast, Met Éireann`;
+  const counts = [0, 1, 2].map(l => P.towns.filter(t => t.level === l).length);
+  const warnTowns = P.towns.filter(t => t.live.length || t.rehearsalWarn).length;
+  const crewJobs = P.crews.reduce((a, c) => a + c.slots.length, 0), crewCap = P.crews.reduce((a, c) => a + c.cap, 0);
+  const flags = P.towns.flatMap(t => t.flags).length;
+  const kpi = (n, l, s, k) => `<div class="kpi" style="--k:${k}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${s}</div></div>`;
+  $("kpis").innerHTML =
+    kpi(counts[2], "Barriers", P.towns.filter(t => t.level === 2).map(t => t.town).join(", ") || "none tonight", "var(--door-red)") +
+    kpi(counts[1], "Standby", P.towns.filter(t => t.level === 1).map(t => t.town).join(", ") || "none tonight", "var(--door-amber)") +
+    kpi(counts[0], "Normal", `of ${P.towns.length} towns`, "var(--door-green)") +
+    kpi(`${crewJobs}<span class="muted" style="font-size:1rem">/${crewCap}</span>`, "Crew places used", "barrier jobs assigned", "var(--door-blue)") +
+    kpi(flags, "Flags to Area Manager", warnTowns ? `${warnTowns} town(s) with orange/red rain warning` : "no orange/red rain warning", "var(--violet)");
+  $("rehBanner").innerHTML = P.anyRehearsal ? `<div class="reh-banner">⚠ This plan uses REHEARSAL values from the Team Sheet (flow_override_m3s / warning_override).</div>` : "";
+
+  $("townCards").innerHTML = P.towns.map(t => {
+    const h = t.hist, max = Math.max(h.p99_m3s * 1.3, (t.peak || 0) * 1.05);
+    const pc = x => Math.min(100, x / max * 100).toFixed(1) + "%";
+    const dmax = Math.max(...t.days.map(d => d.q), 1);
+    const spark = t.days.map(d => `<span class="${d.q === Math.max(...t.days.map(x => x.q)) ? "pk" : ""}" style="height:${Math.max(10, d.q / dmax * 100)}%" title="${esc(d.date)}: ${d.q} m³/s"></span>`).join("");
+    const tags = [t.rehearsal.flow ? `<span class="tag">REHEARSAL flow</span>` : "", t.rehearsalWarn ? `<span class="tag">REHEARSAL ${esc(t.rehearsalWarn)}</span>` : "",
+      ...t.live.map(w => `<span class="tag w">${esc(w.level)} ${esc(w.type)}</span>`), t.yellow.length ? `<span class="tag y">yellow rain</span>` : ""].join("");
+    return `<article class="town ${t.level == null ? "" : "L" + t.level}">
+      <header><div><h3>${esc(t.town)}</h3><div class="meta">${esc(t.river)} · ${esc(t.counties.join(" + "))}</div></div>${lvlBadge(t)}</header>
+      <div class="nums"><div><span class="peak">${fmt(t.peak)}</span> <span class="muted">m³/s peak</span>${tags}</div><div class="src">${t.excessPct == null ? "" : (t.excessPct >= 0 ? "+" : "") + fmt(t.excessPct, 0) + "% vs p99"}</div></div>
+      <div class="meter" style="--p95:${pc(h.p95_m3s)};--p99:${pc(h.p99_m3s)};--v:${t.peak == null ? "0%" : pc(t.peak)}">
+        <div class="fill"></div>
+        <div class="tick" style="left:${pc(h.p95_m3s)}"></div><span class="tl" style="left:${pc(h.p95_m3s)}">p95 ${fmt(h.p95_m3s)}</span>
+        <div class="tick" style="left:${pc(h.p99_m3s)}"></div><span class="bl" style="left:${pc(h.p99_m3s)}">p99 ${fmt(h.p99_m3s)}</span>
+      </div>
+      <div><div class="spark" aria-label="3-day forecast">${spark}</div><div class="src">${t.days.map(d => d.date.slice(5)).join(" · ") || "no forecast"}${t.rehearsal.flow ? " (forecast shown, override used)" : ""}</div></div>
+      <div class="act"><b>${esc(t.action)}</b>${t.standby ? `<div class="src">${esc(t.standby)}</div>` : ""}</div>
+      ${t.flags.map(f => `<div class="flag">⚑ ${esc(f)}</div>`).join("")}
+      ${t.note && !/^normal service$/i.test(t.note) ? `<div class="src">📝 ${esc(t.note)}</div>` : ""}
+      <footer><button class="ghost" data-ask="Why is ${esc(t.town)} at that level?">Why this level?</button><button class="ghost" data-ask="What if the ${esc(t.river)} at ${esc(t.town)} reaches ${Math.round(h.p99_m3s * 1.2)} m³/s?">What-if</button></footer>
+    </article>`;
+  }).join("");
+  document.querySelectorAll("[data-ask]").forEach(b => b.onclick = () => { $("question").value = b.dataset.ask; $("askSec").scrollIntoView(); ask(b.dataset.ask); });
+
+  $("crewBox").innerHTML = P.crews.map(c => {
+    const slots = Array.from({ length: 2 }, (_, i) => c.slots[i] ? `<div class="slot full">🚧 ${esc(c.slots[i])}</div>` : `<div class="slot">${i < c.cap ? "Free" : "Unavailable"}</div>`).join("");
+    return `<div class="crew"><h3>${esc(c.name)} crew <span class="badge ${c.slots.length ? "b2" : "bx"}">${c.slots.length}/${c.cap}</span></h3>
+      <div class="slots">${slots}</div><div class="area">Area tonight: ${esc(c.area.join(", "))}</div>${c.status !== "available" ? `<div class="warn">⚑ ${esc(c.status)}</div>` : ""}</div>`;
+  }).join("") + (P.issues.length ? `<p class="err">Data checks: ${esc(P.issues.join("; "))}</p>` : "");
+
   $("working").innerHTML = `<table><tr><th>Town</th><th>Forecast / value used</th><th>Thresholds (stored history)</th><th>Warning check</th><th>Sheet row</th></tr>` +
-    P.towns.map(t => `<tr><td>${esc(t.town)}</td><td>${esc(t.peakSrc)}<div class="src">fetched ${dublin(P.fetched)}</div></td>
+    P.towns.map(t => `<tr><td><b>${esc(t.town)}</b></td><td>${esc(t.peakSrc)}<div class="src">fetched ${dublin(P.fetched)}</div></td>
     <td>p95 ${fmt(t.hist.p95_m3s)}, p99 ${fmt(t.hist.p99_m3s)} m³/s<div class="src">GloFAS cell ${t.hist.cell_lat},${t.hist.cell_lon} (${t.hist.cell_km_from_town} km from town), ${esc(t.hist.period)}, ${t.hist.days} days. Check: OPW ${esc(t.hist.check_gauge)}, daily r = ${t.hist.check_daily_correlation}</div></td>
     <td>${esc(t.why.join("; "))}<div class="src">Met Éireann codes ${esc(t.counties.map(c => c + " " + (CODES[c] || []).join("/")).join(", "))}; window now → +48 h</div></td>
     <td class="src">barrier_sets ${esc(t.row.barrier_sets)}, pumps ${esc(t.row.pumps)}, sandbags ${esc(t.row.sandbags)}, staff ${esc(t.row.staff_on_call)}, crew_based_here ${esc(t.row.crew_based_here)}, flow_override "${esc(t.row.flow_override_m3s)}", warning_override "${esc(t.row.warning_override)}", notes "${esc(t.row.notes)}"<br>Team Sheet read ${dublin(P.fetched)}</td></tr>`).join("") + `</table>`;
+  renderMap(P);
 }
+
 function renderAM() {
-  const A = areaManager();
-  $("amBox").innerHTML = `<p><b>Most winter high-flow events:</b> ${A.top.map(t => `${esc(t.town)} (${t.events} events; first four winters ${t.first4}, last four ${t.last4}: ${t.trend})`).join(" and ")}${A.tie ? " (tie)" : ""}.</p>
-  <table><tr><th>Town</th><th>River</th><th>p99 m³/s</th><th>Events 2016/17–2024/25</th><th>First 4</th><th>Last 4</th></tr>${A.ranking.map(r => `<tr><td>${esc(r.town)}</td><td>${esc(r.river)}</td><td>${fmt(r.p99_m3s)}</td><td>${r.events}</td><td>${r.first4}</td><td>${r.last4}</td></tr>`).join("")}</table>
-  <p class="src">${esc(A.method)} Source: ${esc(A.source)}.</p><p><b>What this count cannot tell you:</b> ${esc(A.cannot_tell)}</p>`;
+  const A = areaManager(), max = Math.max(...A.ranking.map(r => r.events), 1), topNames = A.top.map(t => t.town);
+  $("amBox").innerHTML = `<div class="am-answer"><b>Answer from the data:</b> ${A.top.map(t => `<b>${esc(t.town)}</b> has the most winter high-flow events (${t.events}). Its last four winters had ${t.last4} against ${t.first4} in its first four: <b>${t.trend}</b>.`).join(" ")}${A.tie ? " (tie)" : ""}</div>
+  <div class="legend"><span><i style="background:var(--liffey-300)"></i>First four winters (2016/17–2019/20)</span><span><i style="background:var(--liffey-500);opacity:.55"></i>2020/21</span><span><i style="background:var(--liffey-700)"></i>Last four winters (2021/22–2024/25)</span></div>
+  <div class="bars">${A.ranking.map(r => {
+    const mid = r.events - r.first4 - r.last4, w = x => (x / max * 100) + "%";
+    return `<div class="bar ${topNames.includes(r.town) ? "top" : ""}"><span class="name">${esc(r.town)}</span><div class="track" title="first four ${r.first4}, 2020/21 ${mid}, last four ${r.last4}"><span class="f4" style="width:${w(r.first4)}"></span><span class="mid" style="width:${w(mid)}"></span><span class="l4" style="width:${w(r.last4)}"></span></div><b>${r.events}</b></div>`;
+  }).join("")}</div>
+  <p class="src" style="margin-top:12px">${esc(A.method)} Source: ${esc(A.source)}.</p>
+  <p><b>What this count cannot tell you:</b> ${esc(A.cannot_tell)}</p>`;
+}
+
+function tickClock() {
+  const now = new Date(), f = o => new Intl.DateTimeFormat("en-IE", { timeZone: "Europe/Dublin", ...o }).format(now);
+  $("clockNow").textContent = f({ hour: "2-digit", minute: "2-digit", weekday: "short" });
+  const [h, m] = f({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).split(":").map(Number), left = 16 * 60 - (h * 60 + m);
+  $("clockDue").textContent = left > 0 ? `in ${Math.floor(left / 60)} h ${left % 60} min` : "passed for today";
 }
 
 // ---------------------------------------------------------------- refresh
@@ -347,11 +598,14 @@ async function refresh(whatIf = null) {
     loadWarnings().catch(e => { errs.push(e.message + " (warnings unknown: treat as unchecked)"); return []; }),
   ]);
   $("refresh").disabled = false;
-  if (!sheet) { $("planStatus").innerHTML = `<span class="err">${esc(errs.join("; "))}</span>`; throw new Error(errs.join("; ")); }
+  if (!sheet) { $("planStatus").innerHTML = `<span class="chip bad">${esc(errs.join("; "))}</span>`; throw new Error(errs.join("; ")); }
   const P = computePlan({ sheet, forecast, warnings, fetched, whatIf });
   P.sourceErrors = errs; P.warningCount = warnings.length;
-  $("planStatus").innerHTML = errs.length ? `<span class="err">Source problem: ${esc(errs.join("; "))}</span>` :
-    `Sources OK: Team Sheet (${sheet.length} rows), GloFAS forecast (${forecast.data.length} cells), Met Éireann (${warnings.length} warnings of any type in force or upcoming, all of Ireland).`;
+  const chip = (ok, txt) => `<span class="chip ${ok ? "" : "bad"}"><span class="dot"></span>${esc(txt)}</span>`;
+  $("planStatus").innerHTML = chip(true, `Team Sheet · ${sheet.length} rows`) +
+    chip(forecast.data.length === SUMMARY.towns.length, `GloFAS forecast · ${forecast.data.length} points`) +
+    chip(!errs.some(e => /warning/i.test(e)), `Met Éireann · ${warnings.length} warnings (all types)`) +
+    (errs.length ? `<span class="chip bad">${esc(errs.join("; "))}</span>` : "");
   return P;
 }
 
@@ -437,7 +691,7 @@ async function ask(q) {
   if (!q.trim()) return;
   $("ask").disabled = true; $("askStatus").textContent = "Reading live data…";
   const box = document.createElement("div");
-  box.innerHTML = `<div class="q">Q: ${esc(q)}</div><div class="answer src">Working…</div>`;
+  box.innerHTML = `<div class="q">Q: ${esc(q)}</div><div class="answer"><span class="typing"><i></i><i></i><i></i></span> <span class="src">reading live data…</span></div>`;
   $("chat").prepend(box);
   try {
     const P = await refresh();             // live, at the moment of the question
@@ -473,7 +727,8 @@ computePlan = function (inp) { const P = _compute(inp); P._inputs = { sheet: inp
 // ---------------------------------------------------------------- settings
 function showKeyState() {
   const p = $("provider").value, k = localStorage.getItem("rw_key_" + p);
-  $("keyState").textContent = k ? `(${p} key saved in this browser, ends …${k.slice(-4)})` : `(no ${p} key saved)`;
+  $("keyState").textContent = k ? `· ${p} ✓` : "· not set";
+  $("keyState2").textContent = k ? `${p} key saved in this browser (ends …${k.slice(-4)}).` : `No ${p} key saved. The plan works without one; questions need one.`;
 }
 function loadSettings() {
   try {
@@ -484,11 +739,16 @@ function loadSettings() {
 }
 $("provider").onchange = () => { localStorage.setItem("rw_provider", $("provider").value); $("model").value = localStorage.getItem("rw_model_" + $("provider").value) || PROVIDERS[$("provider").value].model; showKeyState(); };
 $("model").onchange = () => localStorage.setItem("rw_model_" + $("provider").value, $("model").value.trim());
-$("saveKey").onclick = () => { const k = $("apikey").value.trim(); if (!k) return; localStorage.setItem("rw_key_" + $("provider").value, k); localStorage.setItem("rw_provider", $("provider").value); $("apikey").value = ""; showKeyState(); };
+$("saveKey").onclick = () => { const k = $("apikey").value.trim(); if (!k) return; setTimeout(() => $("settingsDlg").close(), 600); localStorage.setItem("rw_key_" + $("provider").value, k); localStorage.setItem("rw_provider", $("provider").value); $("apikey").value = ""; showKeyState(); };
 $("forgetKey").onclick = () => { localStorage.removeItem("rw_key_" + $("provider").value); showKeyState(); };
 $("ask").onclick = () => ask($("question").value);
 $("question").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask($("question").value); });
 document.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { $("question").value = b.dataset.q; ask(b.dataset.q); });
+$("openSettings").onclick = () => $("settingsDlg").showModal();
+$("closeSettings").onclick = () => $("settingsDlg").close();
+$("themeBtn").onclick = () => { const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); const nx = cur === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = nx; try { localStorage.setItem("rw_theme", nx); } catch { } if (STATE) renderPlan(STATE); };
+try { const th = localStorage.getItem("rw_theme"); if (th) document.documentElement.dataset.theme = th; } catch { }
+tickClock(); setInterval(tickClock, 30000);
 $("clearChat").onclick = () => { CHAT = []; $("chat").innerHTML = ""; };
 $("refresh").onclick = () => refresh().then(P => { STATE = P; renderPlan(P); }).catch(() => { });
 
