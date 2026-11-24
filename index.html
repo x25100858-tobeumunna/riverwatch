@@ -364,30 +364,41 @@ function detectWhatIf(q) {
   if (!town) { const byRiver = SUMMARY.towns.filter(t => new RegExp("\\b" + t.river + "\\b", "i").test(q)); if (byRiver.length === 1) town = byRiver[0]; }
   return town ? { town: town.town, flow } : { town: null, flow };
 }
-function compactPlan(P) {
-  return {
-    data_fetched: P.fetched, source_problems: P.sourceErrors, sheet_issues: P.issues, uses_rehearsal_values: P.anyRehearsal,
-    what_if: P.whatIf,
-    towns: P.towns.map(t => ({
-      town: t.town, river: t.river, counties: t.counties, forecast_days_m3s: t.days.map(d => `${d.date}: ${d.q}`),
-      peak_used_m3s: t.peak == null ? null : +fmt(t.peak), peak_source: t.peakSrc, p95: t.hist.p95_m3s, p99: t.hist.p99_m3s,
-      pct_above_p99: t.excessPct == null ? null : +fmt(t.excessPct), flow_level: t.base == null ? null : LEVELS[t.base],
-      rain_warnings_orange_red: t.live.map(w => `${w.level} ${w.type}: ${w.headline} (${w.onset} to ${w.expiry})`), yellow: t.yellow.length,
-      warning_override: t.rehearsalWarn, final_level: t.final, action: t.action, standby_measures: t.standby || null,
-      barrier_sets: t.sets, notes: t.note, crew: t.crew || null, barrier_rank: t.rank || null, flags: t.flags, reasoning: t.why,
-    })),
-    crews: P.crews.map(c => ({ crew: c.name, area: c.area, capacity: c.cap, assigned: c.slots, status: c.status })),
-  };
+// compact text (not JSON) keeps each request small: Groq's free plan allows 8,000 tokens per minute
+function planText(P, onlyTowns = null, withHead = true) {
+  const f = P._inputs?.forecast?.data?.[0]?.daily?.time || [];
+  const head = [
+    `SOURCES: forecast = GloFAS v4 via Open-Meteo, fetched ${P.fetched}, days ${f.join(", ")}; p95/p99 = stored 2016-2025 GloFAS history (same cell); warnings = Met Éireann warning JSON fetched ${P.fetched}; resources/notes/overrides = Team Sheet read ${P.fetched}.`,
+    P.anyRehearsal ? "THIS PLAN USES REHEARSAL VALUES FROM THE SHEET." : "No rehearsal values in the Sheet.",
+    P.sourceErrors?.length ? "SOURCE PROBLEMS: " + P.sourceErrors.join("; ") : "",
+    P.issues?.length ? "SHEET ISSUES: " + P.issues.join("; ") : "",
+    "town | river (counties) | daily forecast m3/s | peak used | p95/p99 | % vs p99 | flow level | warnings | FINAL | action | crew/rank | flags | notes",
+  ].filter(Boolean);
+  const rows = P.towns.filter(t => !onlyTowns || onlyTowns.includes(t.town)).map(t => [
+    t.town, `${t.river} (${t.counties.join("+")})`, t.days.map(d => d.q).join("/") || "none",
+    (t.peak == null ? "none" : fmt(t.peak)) + (t.rehearsal.whatIf ? " WHAT-IF" : t.rehearsal.flow ? " REHEARSAL flow_override" : ""),
+    `${t.hist.p95_m3s}/${t.hist.p99_m3s}`, t.excessPct == null ? "-" : (t.excessPct >= 0 ? "+" : "") + fmt(t.excessPct) + "%",
+    t.base == null ? "-" : LEVELS[t.base],
+    [...t.live.map(w => `${w.level} ${w.type} ${w.onset}..${w.expiry}`), t.rehearsalWarn ? `${t.rehearsalWarn} REHEARSAL warning_override` : "", t.yellow.length ? "yellow rain (no change)" : ""].filter(Boolean).join("; ") || "none",
+    t.final, t.action + (t.standby ? ` (${t.standby})` : ""), t.crew ? `${t.crew} crew, rank ${t.rank}` : (t.rank ? `none, rank ${t.rank}` : "-"),
+    t.flags.join("; ") || "-", t.note || "-",
+  ].join(" | "));
+  const crews = "CREWS: " + P.crews.map(c => `${c.name} (area ${c.area.join("/")}, cap ${c.cap}${c.status !== "available" ? ", " + c.status : ""}) -> ${c.slots.join(", ") || "none"}`).join("; ");
+  return [...(withHead ? head : [head[head.length - 1]]), ...rows, crews].join("\n");
 }
-const SYSTEM = `You are River Watch, decision support for an Irish flood response team (8 towns, 3 crews). The code has ALREADY applied the Flood Plan and computed every level, warning, crew assignment and flag; your job is to explain those results clearly to the Duty Officer or Area Manager. Rules you must follow:
-- Use ONLY the numbers in the JSON provided. Never invent, round differently or recompute levels; if the JSON lacks something, say the data cannot answer it.
-- For each number say where it came from (GloFAS forecast via Open-Meteo with date, stored 2016-2025 history, Met Éireann warning, Team Sheet) as given in the JSON.
-- If uses_rehearsal_values is true or a town shows REHEARSAL/WHAT-IF, say so clearly. A what-if is hypothetical and not tonight's plan.
+function amText() {
+  const A = areaManager();
+  return `AREA MANAGER STUDY (stored history, ${A.period}; ${A.method}): most events = ${A.top.map(t => `${t.town} ${t.events} (first four ${t.first4}, last four ${t.last4}: ${t.trend})`).join(" and ")}${A.tie ? " TIE" : ""}. All towns (events, first4, last4): ${A.ranking.map(r => `${r.town} ${r.events},${r.first4},${r.last4}`).join("; ")}. Cannot tell: ${A.cannot_tell}`;
+}
+const SYSTEM = `You are River Watch, decision support for an Irish flood response team (8 towns, 3 crews). The code has ALREADY applied the Flood Plan and computed every level, warning, crew and flag; you explain those results to the Duty Officer or Area Manager.
+- Use ONLY the numbers in DATA; never invent or recompute levels. If DATA cannot answer, say so.
+- Say where numbers came from (GloFAS forecast via Open-Meteo with dates; stored 2016-2025 history; Met Éireann; Team Sheet), using SOURCES.
+- Always say clearly when REHEARSAL or WHAT-IF values are used; a what-if is hypothetical, not tonight's plan.
 - You recommend; the Duty Officer decides by 16:00. Never say a crew has been sent.
-- Flood Plan summary: forecast peak = max daily flow today + next 2 days (or flow_override_m3s). Normal < p95; Standby >= p95 (staff on call confirmed, pumps checked, sandbags staged); Barriers >= p99 (crew erects before 18:00). Orange/red rain warning for the town's county (both counties if it spans two) within 48h raises one level; yellow changes nothing. Crews: Clonmel (Clonmel, Fermoy, Enniscorthy), Mallow (Mallow, Fermoy, Bandon), Athlone (Athlone, Carrick-on-Shannon, Ennis), max 2 towns each; ranked by % above p99, tie -> higher peak. No barrier set or no crew -> every Standby measure + flag to Area Manager. Notes are facts for tonight.
-- Area Manager study question: use the area_manager JSON: name the town(s) with most events, whether the last four winters had more events than the first four, and at least one thing the count cannot tell.
-- OUT OF SCOPE (say so politely and refer to the council's area office): coastal/tidal flooding, road closures, insurance, anything about an individual home or property. Do not guess whether a particular house floods.
-- Be concise: short paragraphs or a compact table; Irish English; m³/s units.`;
+- Plan: peak = max daily flow today + next 2 days (or flow_override). Normal < p95; Standby >= p95 (staff on call confirmed, pumps checked, sandbags staged); Barriers >= p99 (crew erects before 18:00). Orange/red rain warning for the town's county (both if it spans two) in next 48h raises one level; yellow changes nothing. Crews max 2 towns each in their area, ranked by % above p99 (tie: higher peak). No barrier set or no crew: every Standby measure + flag to Area Manager. Notes are facts for tonight.
+- Study question: name the town with most events, whether its last four winters had more than its first four, and one thing the count cannot tell.
+- OUT OF SCOPE (say so, refer to the council's area office): coastal/tidal flooding, road closures, insurance, any individual home. Never guess if a house floods.
+- Be concise: short paragraphs or a small table; m³/s.`;
 
 async function callLLM(messages) {
   const provider = $("provider").value, model = $("model").value.trim() || PROVIDERS[provider].model;
@@ -396,10 +407,15 @@ async function callLLM(messages) {
   let r, j;
   if (provider === "groq" || provider === "openai") {
     const url = provider === "groq" ? "https://api.groq.com/openai/v1/chat/completions" : "https://api.openai.com/v1/chat/completions";
-    const body = { model, messages };
-    if (provider === "groq" && /gpt-oss/.test(model)) { body.reasoning_effort = "low"; body.max_completion_tokens = 1200; }
-    r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify(body) });
-    j = await r.json();
+    const body = { model, messages, max_completion_tokens: 900 };
+    if (provider === "groq" && /gpt-oss/.test(model)) body.reasoning_effort = "low";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify(body) });
+      j = await r.json();
+      if (r.status !== 429 || attempt === 2) break;
+      const wait = Math.min(60, Math.ceil(parseFloat(r.headers.get("retry-after")) || parseFloat((j.error?.message || "").match(/try again in ([\d.]+)s/)?.[1]) || 15) + 1);
+      for (let s = wait; s > 0; s--) { $("askStatus").textContent = `Free-plan rate limit reached: retrying in ${s}s…`; await new Promise(res => setTimeout(res, 1000)); }
+    }
     if (!r.ok) throw new Error(`${provider} error ${r.status}: ${j.error?.message || JSON.stringify(j)}`);
     return { text: j.choices[0].message.content, usage: j.usage, model };
   }
@@ -427,23 +443,18 @@ async function ask(q) {
     const P = await refresh();             // live, at the moment of the question
     STATE = P; renderPlan(P);
     const wi = detectWhatIf(q);
-    let ctx = { tonight: compactPlan(P) };
+    let data = "TONIGHT (live):\n" + planText(P);
     if (wi && wi.town) {
-      const H = compactPlan(computePlan({ ...P._inputs, whatIf: wi })), T = ctx.tonight;
-      ctx.what_if_plan = {
-        note: `HYPOTHETICAL: ${wi.town} peak set to ${wi.flow} m³/s; everything else is tonight's live data. Not in the Sheet.`,
-        towns_that_change: H.towns.filter((t, i) => t.town === wi.town || t.final_level !== T.towns[i].final_level || t.crew !== T.towns[i].crew)
-          .map(({ forecast_days_m3s, ...t }) => t),
-        crews: H.crews,
-      };
-    }
-    else if (wi) ctx.what_if_note = `The question gives ${wi.flow} m³/s but no town/river could be matched; ask which town.`;
-    if (/study|wall|defen|first in line|permanent|history|events|winter/i.test(q)) ctx.area_manager = areaManager();
-    const userMsg = `Question: ${q}\n\nDATA (computed by River Watch code at ${P.fetched}):\n${JSON.stringify(ctx)}`;
-    const messages = [{ role: "system", content: SYSTEM }, ...CHAT.slice(-4), { role: "user", content: userMsg }];
+      const H = computePlan({ ...P._inputs, whatIf: wi });
+      const changed = H.towns.filter((t, i) => t.town === wi.town || t.final !== P.towns[i].final || t.crew !== P.towns[i].crew).map(t => t.town);
+      data += `\n\nWHAT-IF (HYPOTHETICAL: ${wi.town} peak set to ${wi.flow} m3/s, everything else live, nothing written to the Sheet). Towns that change:\n` + planText(H, changed, false);
+    } else if (wi) data += `\n\nThe question gives ${wi.flow} m3/s but no town or river could be matched: ask which town.`;
+    if (/study|wall|defen|first in line|permanent|history|events|winter/i.test(q)) data += "\n\n" + amText();
+    const userMsg = `Question: ${q}\n\nDATA:\n${data}`;
+    const messages = [{ role: "system", content: SYSTEM }, ...CHAT.slice(-2), { role: "user", content: userMsg }];
     $("askStatus").textContent = "Asking the AI…";
     const res = await callLLM(messages);
-    CHAT.push({ role: "user", content: `Question: ${q}` }, { role: "assistant", content: res.text });
+    CHAT.push({ role: "user", content: `Question: ${q}` }, { role: "assistant", content: res.text.slice(0, 700) });
     const u = res.usage || {};
     const tin = u.prompt_tokens ?? u.input_tokens ?? u.promptTokenCount, tout = u.completion_tokens ?? u.output_tokens ?? u.candidatesTokenCount;
     box.querySelector(".answer").className = "answer";
