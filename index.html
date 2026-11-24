@@ -269,7 +269,7 @@ footer.site a{color:var(--liffey-300)}
 <dialog id="settingsDlg">
   <div class="dlg-head"><h3>AI key</h3><div style="opacity:.85;font-size:.85rem">Stored only in this browser (localStorage) and sent only to the provider you pick. Never in this page's code or repository.</div></div>
   <div class="dlg-body">
-    <label>Provider<select id="provider"><option value="groq">Groq</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option></select></label>
+    <label>Provider<select id="provider"><option value="server">River Watch server: Groq, no key needed (default)</option><option value="groq">Groq (your own key)</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option></select></label>
     <label>Model<input id="model"></label>
     <label>API key<input id="apikey" type="password" placeholder="Paste your API key" autocomplete="off"></label>
     <div class="src" id="keyState2"></div>
@@ -287,6 +287,8 @@ footer.site a{color:var(--liffey-300)}
 "use strict";
 // ---------------------------------------------------------------- configuration (no secrets here)
 const SHEET_ID = "1nLDx0GxLw5TBvBUZQhT0MfeoChAui4mB2v9slLB1qmE";
+// Cloudflare Worker that holds the Groq key server-side (see worker/worker.js). The URL is public; the key is not.
+const WORKER_URL = "https://riverwatch.x25100858.workers.dev";
 const SHEET_URL = () => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&t=${Date.now()}`;
 const SHEET_LINK = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
 const FLOOD_API = "https://flood-api.open-meteo.com/v1/flood";
@@ -299,6 +301,7 @@ const CREWS = [
   { name: "Athlone", base: "Athlone", area: ["Athlone", "Carrick-on-Shannon", "Ennis"], cap: 2 },
 ];
 const PROVIDERS = {
+  server: { model: "openai/gpt-oss-120b" },
   groq: { model: "openai/gpt-oss-120b" },
   openai: { model: "gpt-4.1-mini" },
   anthropic: { model: "claude-haiku-4-5" },
@@ -656,6 +659,19 @@ const SYSTEM = `You are River Watch, decision support for an Irish flood respons
 
 async function callLLM(messages) {
   const provider = $("provider").value, model = $("model").value.trim() || PROVIDERS[provider].model;
+  if (provider === "server") {
+    let r, j;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { r = await fetch(WORKER_URL.replace(/\/$/, "") + "/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) }); }
+      catch (e) { throw new Error("River Watch server unreachable (" + e.message + "). You can paste your own key in ⚙ AI key and pick another provider."); }
+      j = await r.json().catch(() => ({}));
+      if (r.status !== 429 || attempt === 2) break;
+      const wait = Math.min(60, Math.ceil(parseFloat(r.headers.get("retry-after")) || parseFloat((j.error?.message || "").match(/try again in ([\d.]+)s/)?.[1]) || 15) + 1);
+      for (let s = wait; s > 0; s--) { $("askStatus").textContent = `Free-plan rate limit reached: retrying in ${s}s…`; await new Promise(res => setTimeout(res, 1000)); }
+    }
+    if (!r.ok) throw new Error(`River Watch server error ${r.status}: ${j.error?.message || JSON.stringify(j)}`);
+    return { text: j.choices[0].message.content, usage: j.usage, model: j.model || model };
+  }
   const key = localStorage.getItem("rw_key_" + provider);
   if (!key) throw new Error("No key saved for " + provider + ". Open Settings, paste a key and press Save key. (The plan table above works without a key.)");
   let r, j;
@@ -727,12 +743,14 @@ computePlan = function (inp) { const P = _compute(inp); P._inputs = { sheet: inp
 // ---------------------------------------------------------------- settings
 function showKeyState() {
   const p = $("provider").value, k = localStorage.getItem("rw_key_" + p);
+  if (p === "server") { $("keyState").textContent = "· server ✓"; $("keyState2").textContent = "Using the River Watch server: the Groq key is held in Cloudflare, so nothing needs pasting here. Pick another provider only to use your own key."; $("apikey").disabled = true; return; }
+  $("apikey").disabled = false;
   $("keyState").textContent = k ? `· ${p} ✓` : "· not set";
   $("keyState2").textContent = k ? `${p} key saved in this browser (ends …${k.slice(-4)}).` : `No ${p} key saved. The plan works without one; questions need one.`;
 }
 function loadSettings() {
   try {
-    $("provider").value = localStorage.getItem("rw_provider") || "groq";
+    $("provider").value = localStorage.getItem("rw_provider") || "server";
     $("model").value = localStorage.getItem("rw_model_" + $("provider").value) || PROVIDERS[$("provider").value].model;
   } catch { }
   showKeyState();
