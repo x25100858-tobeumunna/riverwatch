@@ -638,7 +638,7 @@ function planText(P, onlyTowns = null, withHead = true) {
     t.base == null ? "-" : LEVELS[t.base],
     [...t.live.map(w => `${w.level} ${w.type} ${w.onset}..${w.expiry}`), t.rehearsalWarn ? `${t.rehearsalWarn} REHEARSAL warning_override` : "", t.yellow.length ? "yellow rain (no change)" : ""].filter(Boolean).join("; ") || "none",
     t.final, t.action + (t.standby ? ` (${t.standby})` : ""), t.crew ? `${t.crew} crew, rank ${t.rank}` : (t.rank ? `none, rank ${t.rank}` : "-"),
-    t.flags.join("; ") || "-", t.note || "-",
+    t.flags.join("; ") || "-", t.note ? `[${t.town} only] ${t.note}` : "-",
   ].join(" | "));
   const crews = "CREWS: " + P.crews.map(c => `${c.name} (area ${c.area.join("/")}, cap ${c.cap}${c.status !== "available" ? ", " + c.status : ""}) -> ${c.slots.join(", ") || "none"}`).join("; ");
   return [...(withHead ? head : [head[head.length - 1]]), ...rows, crews].join("\n");
@@ -655,7 +655,10 @@ const SYSTEM = `You are River Watch, decision support for an Irish flood respons
 - Plan: peak = max daily flow today + next 2 days (or flow_override). Normal < p95; Standby >= p95 (staff on call confirmed, pumps checked, sandbags staged); Barriers >= p99 (crew erects before 18:00). Orange/red rain warning for the town's county (both if it spans two) in next 48h raises one level; yellow changes nothing. Crews max 2 towns each in their area, ranked by % above p99 (tie: higher peak). No barrier set or no crew: every Standby measure + flag to Area Manager. Notes are facts for tonight.
 - Study question: name the town with most events, whether its last four winters had more than its first four, and one thing the count cannot tell.
 - OUT OF SCOPE (say so, refer to the council's area office): coastal/tidal flooding, road closures, insurance, any individual home. Never guess if a house floods.
-- Be concise: short paragraphs or a small table; m³/s.`;
+- Each note applies ONLY to its own town (it is tagged [Town only]); never move a note, flag or crew restriction to another town.
+- "Tonight's plan": one compact table (Town | Level | Why, with peak vs p95/p99 and any warning | Action and crew), then one line per crew, then any flags. Under 250 words. Do not add advice that is not in the Flood Plan.
+- Other questions: answer in under 200 words.
+- Be concise; m³/s.`;
 
 async function callLLM(messages) {
   const provider = $("provider").value, model = $("model").value.trim() || PROVIDERS[provider].model;
