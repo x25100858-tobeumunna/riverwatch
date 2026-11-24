@@ -1,4 +1,3 @@
-
 # River Watch
 
 Decision support for a (fictional) flood response team covering eight Irish towns. Live page: https://x25100858-tobeumunna.github.io/riverwatch/
@@ -12,7 +11,9 @@ Decision support for a (fictional) flood response team covering eight Irish town
 - `data/history_daily.csv`: the 2016–2025 daily series behind `summary.json`, kept for checking.
 - `scripts/`: one-off scripts (cell scan, gauge check, summary build).
 
-No API key is stored anywhere in this repository.
+- `worker/worker.js`: Cloudflare Worker that holds the Groq key as an encrypted Cloudflare secret (`GROQ_API_KEY`) and relays questions from this page only (origin check, fixed model, size caps). Visitors need no key. The settings box still lets anyone use their own key instead.
+
+No API key is stored anywhere in this repository or the page.
 
 ## Sources and attribution
 - River flow forecast and history: GloFAS v4, Copernicus Emergency Management Service, via Open-Meteo (open-meteo.com), CC BY 4.0.
