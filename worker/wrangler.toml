@@ -1,0 +1,14 @@
+name = "riverwatch"
+main = "worker.js"
+compatibility_date = "2026-11-24"
+workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+
+# The Groq key is NOT here. It is an encrypted Cloudflare secret, added with:
+#   npx wrangler secret put GROQ_API_KEY
