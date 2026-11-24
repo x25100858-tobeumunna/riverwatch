@@ -177,6 +177,31 @@ footer.site{background:var(--granite);color:#c9d3d9;padding:26px 0 34px;margin-t
 footer.site b{color:#fff}
 footer.site a{color:var(--liffey-300)}
 
+
+/* --- Ask River Watch emphasis --- */
+.hero-cta{display:inline-flex;align-items:center;gap:10px;margin-top:18px;background:#fff;color:var(--liffey-900);text-decoration:none;font-weight:700;font-size:1.05rem;padding:12px 18px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:transform .15s,box-shadow .15s}
+.hero-cta:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,0,0,.3)}
+.hero-cta .cta-sub{font-weight:500;font-size:.8rem;color:var(--muted);border-left:1px solid var(--line);padding-left:10px}
+.spark-ico{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--hero-grad);color:#fff;font-size:.9rem}
+#askSec{position:relative;border:2px solid var(--liffey-500);box-shadow:0 0 0 6px var(--liffey-100),var(--shadow);background:linear-gradient(180deg,var(--liffey-100) 0,var(--paper) 140px);padding-top:30px;scroll-margin-top:16px}
+#askSec.pulse{animation:askPulse 1.4s ease-out 1}
+@keyframes askPulse{0%{box-shadow:0 0 0 0 rgba(19,122,134,.55),var(--shadow)}100%{box-shadow:0 0 0 18px rgba(19,122,134,0),var(--shadow)}}
+.ask-ribbon{position:absolute;top:-14px;left:18px;background:var(--liffey-500);color:#fff;font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 12px;border-radius:999px;display:flex;align-items:center;gap:7px;box-shadow:var(--shadow)}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#7CFFB2;box-shadow:0 0 0 0 rgba(124,255,178,.7);animation:livePing 1.8s infinite}
+@keyframes livePing{0%{box-shadow:0 0 0 0 rgba(124,255,178,.7)}70%{box-shadow:0 0 0 8px rgba(124,255,178,0)}100%{box-shadow:0 0 0 0 rgba(124,255,178,0)}}
+.ask-title{display:flex;gap:14px;align-items:flex-start;flex:1 1 420px;min-width:0}
+.ask-ico{flex:none;width:48px;height:48px;border-radius:14px;background:var(--hero-grad);color:#fff;display:grid;place-items:center;font-size:1.4rem;box-shadow:var(--shadow)}
+#askSec h2{font-size:1.7rem}
+.ask-lead{font-size:1rem;margin:4px 0 2px}
+#askSec .composer textarea{min-height:72px;font-size:1rem;border-width:2px;border-color:var(--liffey-300);background:var(--paper)}
+#askSec .composer textarea:focus{border-color:var(--liffey-500);box-shadow:0 0 0 4px var(--liffey-100)}
+.ask-btn{white-space:nowrap;flex:none;padding:14px 22px;font-size:1.02rem;border-radius:12px;background:var(--hero-grad);box-shadow:0 6px 18px rgba(11,85,96,.35)}
+.ask-btn:hover{filter:brightness(1.1);background:var(--hero-grad)}
+.ask-fab{position:fixed;right:18px;bottom:18px;z-index:50;display:inline-flex;align-items:center;gap:8px;background:var(--hero-grad);color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:999px;box-shadow:0 10px 30px rgba(6,52,58,.4);transition:opacity .25s,transform .25s}
+.ask-fab:hover{transform:translateY(-2px)}
+.ask-fab.hide{opacity:0;transform:translateY(20px);pointer-events:none}
+@media (prefers-reduced-motion:reduce){.live-dot,#askSec.pulse{animation:none}}
+@media (max-width:520px){.hero-cta .cta-sub{display:none}.ask-fab{right:12px;bottom:12px;padding:12px 15px}#askSec h2{font-size:1.4rem}.ask-ico{width:40px;height:40px}}
 @media (max-width:900px){.hero-body,.duo{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}#map{height:320px}}
 @media (max-width:520px){.kpis{grid-template-columns:repeat(2,1fr)}.kpi .n{font-size:1.6rem}.bar{grid-template-columns:96px 1fr 52px}.brand small{display:none}.composer{flex-direction:column;align-items:stretch}}
 </style>
@@ -199,6 +224,7 @@ footer.site a{color:var(--liffey-300)}
       <div>
         <h2>Tonight's plan for eight towns, three crews and one Flood Plan.</h2>
         <p>River Watch reads the live river forecast, Met Éireann warnings and the team Sheet, applies the Flood Plan 2026/27, and shows where every number came from.</p>
+        <a href="#askSec" class="hero-cta" id="heroAsk"><span class="spark-ico" aria-hidden="true">✦</span> Ask River Watch <span class="cta-sub">AI assistant · no key needed</span></a>
       </div>
       <div class="clock" aria-live="polite">
         <div class="src" style="color:#fff;opacity:.8">Dublin time</div>
@@ -245,7 +271,8 @@ footer.site a{color:var(--liffey-300)}
   </section>
 
   <section class="card" id="askSec">
-    <div class="sec-head"><div><h2>Ask River Watch</h2><div class="src">Every question re-reads the live sources first. The code computes the plan, and the AI explains it.</div></div><button id="clearChat" class="ghost">Clear conversation</button></div>
+    <div class="ask-ribbon"><span class="live-dot"></span> AI assistant · live data</div>
+    <div class="sec-head"><div class="ask-title"><div class="ask-ico" aria-hidden="true">✦</div><div><h2>Ask River Watch</h2><div class="ask-lead">Ask anything about tonight's plan, a town, a what-if or the flood-defence study. Tap a question below or type your own.</div><div class="src">Every question re-reads the live sources first. The code computes the plan, and the AI explains it.</div></div></div><button id="clearChat" class="ghost">Clear conversation</button></div>
     <div class="ask-grid">
       <div class="chips">
         <button data-q="What is tonight's plan?">Tonight's plan</button>
@@ -254,7 +281,7 @@ footer.site a{color:var(--liffey-300)}
         <button data-q="Which town should be first in line for a flood-defence study?">Flood-defence study</button>
         <button data-q="Will my house in Mallow flood tonight?">Will my house in Mallow flood?</button>
       </div>
-      <div class="composer"><textarea id="question" placeholder="Ask about tonight's plan, a town, a what-if, or the flood-defence study… (Ctrl/⌘ + Enter to send)"></textarea><button id="ask">Ask ➜</button></div>
+      <div class="composer"><textarea id="question" placeholder="Ask about tonight's plan, a town, a what-if, or the flood-defence study… (Ctrl/⌘ + Enter to send)"></textarea><button id="ask" class="ask-btn">Ask ➜</button></div>
       <div id="askStatus" class="src"></div>
       <div id="chat"></div>
     </div>
@@ -277,6 +304,7 @@ footer.site a{color:var(--liffey-300)}
   </div>
 </dialog>
 
+<a href="#askSec" class="ask-fab" id="askFab" aria-label="Ask River Watch"><span aria-hidden="true">✦</span> Ask River Watch</a>
 <footer class="site"><div class="wrap">
   <p><b>Sources.</b> River flow forecast and 2016–2025 history: GloFAS v4, Copernicus Emergency Management Service, via the Open-Meteo Flood API (open-meteo.com), CC BY 4.0. Weather warnings: Copyright Met Éireann. Source met.ie. Published under CC BY 4.0. Met Éireann does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use. Modified: filtered to rain warnings and matched to towns. Gauge cross-check (offline only): contains Irish Public Sector Data (OPW, waterlevel.ie), CC BY 4.0. Map and town locations: © OpenStreetMap contributors. Team Sheet values are fictional.</p>
   <p><b>Limits.</b> Model flows (GloFAS) come from a grid of about 5 km and run lower than OPW gauge readings. River Watch compares each forecast only with thresholds from the same model cell. It does not cover coastal or tidal flooding, road closures, insurance or individual homes: those go to the council's area office.</p>
@@ -772,6 +800,12 @@ $("closeSettings").onclick = () => $("settingsDlg").close();
 $("themeBtn").onclick = () => { const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); const nx = cur === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = nx; try { localStorage.setItem("rw_theme", nx); } catch { } if (STATE) renderPlan(STATE); };
 try { const th = localStorage.getItem("rw_theme"); if (th) document.documentElement.dataset.theme = th; } catch { }
 tickClock(); setInterval(tickClock, 30000);
+
+// --- Ask River Watch: jump, focus and highlight; hide the floating button while the section is on screen
+function goAsk(e) { if (e) e.preventDefault(); const sec = $("askSec"); sec.scrollIntoView({ behavior: "smooth", block: "start" });
+  sec.classList.remove("pulse"); void sec.offsetWidth; sec.classList.add("pulse"); setTimeout(() => $("question").focus({ preventScroll: true }), 450); }
+$("heroAsk").onclick = goAsk; $("askFab").onclick = goAsk;
+if ("IntersectionObserver" in window) new IntersectionObserver(es => es.forEach(en => $("askFab").classList.toggle("hide", en.isIntersecting)), { threshold: .25 }).observe($("askSec"));
 $("clearChat").onclick = () => { CHAT = []; $("chat").innerHTML = ""; };
 $("refresh").onclick = () => refresh().then(P => { STATE = P; renderPlan(P); }).catch(() => { });
 
